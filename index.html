@@ -65,6 +65,7 @@
   input[type=text]::placeholder { color: #94a3b8; }
 
   #status { font-size: 13px; color: #94a3b8; min-height: 18px; }
+  #error { font-size: 14px; color: #f87171; min-height: 40px; margin-top: 8px; padding: 10px; background: #7f1d1d; border-radius: 8px; display: none; }
 
   .restart {
     background: #64748b;
@@ -81,6 +82,7 @@
   <h1>✨ Rynmaru — Sua História</h1>
   <div id="story">Clique em "Começar aventura" para criar sua primeira história.</div>
   <div id="status"></div>
+  <div id="error"></div>
   <div class="choices" id="choices"></div>
   <div id="custom">
     <input type="text" id="customInput" placeholder="Ou digite sua própria ação...">
@@ -94,11 +96,21 @@ const API = '/api/generate';
 const storyEl = document.getElementById('story');
 const choicesEl = document.getElementById('choices');
 const statusEl = document.getElementById('status');
+const errorEl = document.getElementById('error');
 const customInput = document.getElementById('customInput');
 const customBtn = document.getElementById('customBtn');
 const restartBtn = document.getElementById('restartBtn');
 
 let history = [];
+
+function showError(msg) {
+  errorEl.textContent = msg;
+  errorEl.style.display = 'block';
+}
+
+function hideError() {
+  errorEl.style.display = 'none';
+}
 
 function setLoading(loading) {
   statusEl.textContent = loading ? 'Escrevendo sua história...' : '';
@@ -110,6 +122,7 @@ function setLoading(loading) {
 
 async function send(message) {
   setLoading(true);
+  hideError();
   choicesEl.innerHTML = '';
   try {
     const res = await fetch(API, {
@@ -119,7 +132,7 @@ async function send(message) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Erro na IA (' + res.status + ')');
+      throw new Error(err.error || 'Erro na IA (HTTP ' + res.status + ')');
     }
     const data = await res.json();
     storyEl.textContent = data.text || data.story || 'A história parou por aqui.';
@@ -127,7 +140,8 @@ async function send(message) {
     renderChoices(data.choices || []);
     restartBtn.style.display = 'inline-block';
   } catch (e) {
-    statusEl.textContent = 'Erro: ' + e.message + ' — tente novamente.';
+    showError('Erro: ' + e.message);
+    statusEl.textContent = '';
   } finally {
     setLoading(false);
     customInput.value = '';
@@ -161,6 +175,7 @@ restartBtn.onclick = () => {
   choicesEl.innerHTML = '';
   restartBtn.style.display = 'none';
   statusEl.textContent = '';
+  hideError();
 };
 
 // Inicia automaticamente
