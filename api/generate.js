@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+const handler = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -44,7 +44,6 @@ Regras importantes:
     const data = await groqRes.json();
     const text = data.choices?.[0]?.message?.content || 'A história parou por aqui.';
 
-    // Extrai as 3 opções numeradas que a IA escreveu
     const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
     const choices = lines
       .filter((l) => /^[1-3]\.?\s/.test(l))
@@ -62,4 +61,6 @@ Regras importantes:
     console.error(err);
     return res.status(500).json({ error: 'Erro ao gerar história' });
   }
-}
+};
+
+module.exports = handler;
