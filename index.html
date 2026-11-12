@@ -21,7 +21,7 @@
     background: #1e293b;
     border-radius: 16px;
     padding: 20px;
-    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.35);
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4);
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -31,10 +31,12 @@
   #story {
     font-size: 17px;
     white-space: pre-wrap;
-    min-height: 180px;
+    min-height: 200px;
     color: #e2e8f0;
     overflow-y: auto;
     padding-right: 4px;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 16px;
   }
   .choices { display: flex; flex-direction: column; gap: 10px; }
   button {
@@ -51,29 +53,12 @@
   button:hover { background: #2563eb; }
   button:active { transform: scale(0.98); }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  #custom { margin-top: 6px; display: flex; gap: 8px; align-items: center; }
-  input[type=text] {
-    flex: 1;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: none;
-    background: #334155;
-    color: #ffffff;
-    font-size: 16px;
-  }
-  input[type=text]::placeholder { color: #94a3b8; }
-
-  #status { font-size: 13px; color: #94a3b8; min-height: 18px; }
-  #error { font-size: 14px; color: #f87171; min-height: 40px; margin-top: 8px; padding: 10px; background: #7f1d1d; border-radius: 8px; display: none; }
-
   .restart {
     background: #64748b;
     text-align: center;
-    margin-top: 6px;
+    margin-top: 8px;
   }
   .restart:hover { background: #475569; }
-
   .small-note { font-size: 12px; color: #94a3b8; margin-top: 8px; }
 </style>
 </head>
@@ -81,105 +66,197 @@
 <div class="card">
   <h1>✨ Rynmaru — Sua História</h1>
   <div id="story">Clique em "Começar aventura" para criar sua primeira história.</div>
-  <div id="status"></div>
-  <div id="error"></div>
   <div class="choices" id="choices"></div>
-  <div id="custom">
-    <input type="text" id="customInput" placeholder="Ou digite sua própria ação...">
-    <button id="customBtn">Fazer</button>
-  </div>
   <button class="restart" id="restartBtn" style="display:none">Reiniciar aventura</button>
-  <div class="small-note">História gerada por IA. Requer conexão com a internet.</div>
+  <div class="small-note">Funciona offline, sem servidor, sem cadastro.</div>
 </div>
 <script>
-const API = '/api/generate';
+// Todas as histórias estão aqui, no seu celular. Não precisa de internet.
+const cenas = {
+  inicio: {
+    texto: "Você acorda em uma floresta misteriosa. Não se lembra de como chegou aqui. À sua frente, há três caminhos:",
+    opcoes: [
+      { texto: "Seguir o caminho de pedras brancas", destino: "caminho_pedras" },
+      { texto: "Entrar na caverna escura", destino: "caverna" },
+      { texto: "Subir na árvore para olhar ao redor", destino: "arvore" }
+    ]
+  },
+  caminho_pedras: {
+    texto: "As pedras brilham sob a luz da lua. Você caminha por um tempo e encontra um rio com água cristalina. Um barquinho velho está amarrado em uma árvore próxima.",
+    opcoes: [
+      { texto: "Pegar o barquinho e descer o rio", destino: "rio" },
+      { texto: "Seguir andando pela margem", destino: "margem" },
+      { texto: "Voltar para a floresta", destino: "inicio" }
+    ]
+  },
+  caverna: {
+    texto: "Dentro da caverna está escuro, mas você vê um brilho verde no fundo. O ar fica mais frio à medida que avança.",
+    opcoes: [
+      { texto: "Seguir o brilho verde", destino: "brilho_verde" },
+      { texto: "Voltar para fora da caverna", destino: "inicio" },
+      { texto: "Gritar para ver se alguém responde", destino: "grito_caverna" }
+    ]
+  },
+  arvore: {
+    texto: "Do alto da árvore, você avista uma vila distante ao norte e uma montanha brilhante ao leste. O vento sopra forte.",
+    opcoes: [
+      { texto: "Descer e ir em direção à vila", destino: "vila" },
+      { texto: "Descer e ir em direção à montanha", destino: "montanha" },
+      { texto: "Descer e voltar para o chão da floresta", destino: "inicio" }
+    ]
+  },
+  rio: {
+    texto: "O barquinho flui pelo rio calmo. De repente, você vê uma ilha pequena à frente, com uma fogueira acesa.",
+    opcoes: [
+      { texto: "Atracar na ilha", destino: "ilha" },
+      { texto: "Seguir o rio mais adiante", destino: "rio_adiante" },
+      { texto: "Voltar para a margem", destino: "margem" }
+    ]
+  },
+  margem: {
+    texto: "Você caminha pela margem do rio e encontra pegadas estranhas na lama. Elas levam para dentro da mata densa.",
+    opcoes: [
+      { texto: "Seguir as pegadas", destino: "pegadas" },
+      { texto: "Ignorar e continuar pela margem", destino: "margem_adiante" },
+      { texto: "Voltar para as pedras brancas", destino: "caminho_pedras" }
+    ]
+  },
+  brilho_verde: {
+    texto: "O brilho verde vem de um cristal enorme flutuando no ar. Ele parece pulsar com energia.",
+    opcoes: [
+      { texto: "Tocar o cristal", destino: "tocar_cristal" },
+      { texto: "Sair da caverna rapidamente", destino: "inicio" },
+      { texto: "Tentar pegar o cristal com cuidado", destino: "pegar_cristal" }
+    ]
+  },
+  grito_caverna: {
+    texto: "Seu eco retorna, mas seguido por um ruído estranho vindo do fundo da caverna.",
+    opcoes: [
+      { texto: "Investigar o ruído", destino: "ruido_caverna" },
+      { texto: "Sair correndo da caverna", destino: "inicio" }
+    ]
+  },
+  vila: {
+    texto: "A vila parece abandonada. As casas são de madeira e há uma fogueira apagada na praça central.",
+    opcoes: [
+      { texto: "Entrar em uma das casas", destino: "casa_vila" },
+      { texto: "Procurar algo útil na praça", destino: "praça_vila" },
+      { texto: "Sair da vila e voltar para a floresta", destino: "inicio" }
+    ]
+  },
+  montanha: {
+    texto: "A montanha é íngreme e rochosa. Você encontra uma entrada para uma mina abandonada.",
+    opcoes: [
+      { texto: "Entrar na mina", destino: "mina" },
+      { texto: "Subir mais alto na montanha", destino: "topo_montanha" },
+      { texto: "Descer e voltar para a árvore", destino: "arvore" }
+    ]
+  },
+  ilha: {
+    texto: "Na ilha, você encontra um acampamento antigo. Há comida, água e um mapa velho espalhado no chão.",
+    opcoes: [
+      { texto: "Pegar o mapa e comer algo", destino: "mapa_ilha" },
+      { texto: "Deixar tudo e voltar para o barquinho", destino: "rio" },
+      { texto: "Procurar por quem acampou aqui", destino: "procurar_acampamento" }
+    ]
+  },
+  tocar_cristal: {
+    texto: "Ao tocar o cristal, você sente uma energia percorrer seu corpo. Você ganha a capacidade de entender a linguagem dos animais!",
+    opcoes: [
+      { texto: "Sair da caverna com esse poder", destino: "inicio" },
+      { texto: "Pegar o cristal também", destino: "pegar_cristal" }
+    ]
+  },
+  pegar_cristal: {
+    texto: "O cristal é mais leve do que parecia. Agora você o carrega consigo, sentindo seu calor na mão.",
+    opcoes: [
+      { texto: "Sair da caverna com o cristal", destino: "inicio" },
+      { texto: "Devolver o cristal ao lugar", destino: "brilho_verde" }
+    ]
+  },
+  ruido_caverna: {
+    texto: "Você encontra um pequeno monstro de pedra que apenas quer amizade. Ele oferece guiá-lo para fora.",
+    opcoes: [
+      { texto: "Aceitar a ajuda do monstro", destino: "inicio" },
+      { texto: "Voltar para o brilho verde", destino: "brilho_verde" }
+    ]
+  },
+  casa_vila: {
+    texto: "Dentro da casa, você encontra um baú trancado e um diário sobre a mesa.",
+    opcoes: [
+      { texto: "Ler o diário", destino: "diario_vila" },
+      { texto: "Tentar abrir o baú", destino: "bau_vila" },
+      { texto: "Sair da casa", destino: "vila" }
+    ]
+  },
+  praça_vila: {
+    texto: "Na praça, você encontra uma espada velha, mas ainda afiada, presa em uma pedra.",
+    opcoes: [
+      { texto: "Tentar puxar a espada", destino: "espada_pedra" },
+      { texto: "Deixar a espada e explorar mais", destino: "vila" }
+    ]
+  },
+  mapa_ilha: {
+    texto: "O mapa mostra o caminho para um tesouro escondido na montanha. Você se sente um aventureiro de verdade.",
+    opcoes: [
+      { texto: "Seguir o mapa para a montanha", destino: "montanha" },
+      { texto: "Guardar o mapa e voltar para o rio", destino: "rio" }
+    ]
+  },
+  diario_vila: {
+    texto: "O diário conta que um guardião protege a floresta. Ele mora no topo da montanha.",
+    opcoes: [
+      { texto: "Ir para a montanha encontrar o guardião", destino: "montanha" },
+      { texto: "Voltar para a praça", destino: "vila" }
+    ]
+  },
+  espada_pedra: {
+    texto: "A espada solta! Você agora é um herói lendário, pelo menos em sua própria cabeça.",
+    opcoes: [
+      { texto: "Voltar para a vila com a espada", destino: "vila" },
+      { texto: "Ir para a montanha", destino: "montanha" }
+    ]
+  },
+  // finais
+  fim_heroi: {
+    texto: "Você se torna o guardião da floresta e vive muitas aventuras. FIM.",
+    opcoes: []
+  }
+};
+
+let atual = 'inicio';
+
 const storyEl = document.getElementById('story');
 const choicesEl = document.getElementById('choices');
-const statusEl = document.getElementById('status');
-const errorEl = document.getElementById('error');
-const customInput = document.getElementById('customInput');
-const customBtn = document.getElementById('customBtn');
 const restartBtn = document.getElementById('restartBtn');
 
-let history = [];
-
-function showError(msg) {
-  errorEl.textContent = msg;
-  errorEl.style.display = 'block';
-}
-
-function hideError() {
-  errorEl.style.display = 'none';
-}
-
-function setLoading(loading) {
-  statusEl.textContent = loading ? 'Escrevendo sua história...' : '';
-  const disabled = loading;
-  customBtn.disabled = disabled;
-  customInput.disabled = disabled;
-  Array.from(choicesEl.querySelectorAll('button')).forEach(b => (b.disabled = disabled));
-}
-
-async function send(message) {
-  setLoading(true);
-  hideError();
+function mostrarCena(chave) {
+  const cena = cenas[chave];
+  storyEl.textContent = cena.texto;
   choicesEl.innerHTML = '';
-  try {
-    const res = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, history })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Erro na IA (HTTP ' + res.status + ')');
-    }
-    const data = await res.json();
-    storyEl.textContent = data.text || data.story || 'A história parou por aqui.';
-    history = data.history || history;
-    renderChoices(data.choices || []);
+  if (!cena.opcoes || cena.opcoes.length === 0) {
     restartBtn.style.display = 'inline-block';
-  } catch (e) {
-    showError('Erro: ' + e.message);
-    statusEl.textContent = '';
-  } finally {
-    setLoading(false);
-    customInput.value = '';
-  }
-}
-
-function renderChoices(choices) {
-  choicesEl.innerHTML = '';
-  if (!choices || choices.length === 0) {
-    const b = document.createElement('button');
-    b.textContent = 'Continuar...';
-    b.disabled = true;
-    choicesEl.appendChild(b);
     return;
   }
-  choices.forEach((c) => {
+  cena.opcoes.forEach((op) => {
     const b = document.createElement('button');
-    b.textContent = c;
-    b.onclick = () => send(c);
+    b.textContent = op.texto;
+    b.onclick = () => {
+      atual = op.destino;
+      mostrarCena(atual);
+    };
     choicesEl.appendChild(b);
   });
+  restartBtn.style.display = 'none';
 }
 
-customBtn.onclick = () => {
-  const v = customInput.value.trim();
-  if (v) send(v);
-};
 restartBtn.onclick = () => {
-  history = [];
-  storyEl.textContent = 'Clique em "Começar aventura" para criar sua primeira história.';
-  choicesEl.innerHTML = '';
-  restartBtn.style.display = 'none';
-  statusEl.textContent = '';
-  hideError();
+  atual = 'inicio';
+  mostrarCena(atual);
 };
 
-// Inicia automaticamente
-send('Comece uma nova história interativa em português do Brasil. Apresente o cenário inicial do zero e termine com exatamente 3 opções numeradas para o leitor escolher o próximo passo.');
+// Inicia
+mostrarCena(atual);
 </script>
 </body>
 </html>
